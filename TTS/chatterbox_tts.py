@@ -6,7 +6,7 @@ import modal
 
 
 # S3 cloud bucket mount (read-only, replaces Modal Volume)
-S3_BUCKET_NAME = "adrish-resonance-uploads"
+S3_BUCKET_NAME = "sonic-ffff8.firebasestorage.app"
 R2_MOUNT_PATH = "/r2"
 s3_bucket = modal.CloudBucketMount(
     S3_BUCKET_NAME,
