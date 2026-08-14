@@ -17,7 +17,7 @@ Sonic is a high-performance, AI-powered text-to-speech platform featuring voice 
 - **API:** [tRPC](https://trpc.io/) (Typesafe end-to-end API)
 - **Database:** [PostgreSQL](https://www.postgresql.org/) + [Prisma](https://www.prisma.io/)
 - **Auth:** [Clerk](https://clerk.com/) (Session & Organization Management)
-- **Storage:** [Cloudflare R2](https://www.cloudflare.com/developer-platform/r2/) (S3-compatible)
+- **Storage:** [AWS S3](https://www.cloudflare.com/developer-platform/r2/) (S3-compatible)
 - **TTS Engine:** [Modal](https://modal.com/) (Python, FastAPI, GPU Inference)
 - **Billing:** [Polar.sh](https://polar.sh/) (Subscription & Metering)
 
@@ -37,7 +37,7 @@ npm install
 Copy `.env.example` to `.env` (if available) or ensure the following are set:
 - `DATABASE_URL`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` & `CLERK_SECRET_KEY`
-- `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`
+- `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`
 - `POLAR_ACCESS_TOKEN`, `POLAR_SERVER`
 - `CHATTERBOX_API_URL`, `CHATTERBOX_API_KEY`
 
@@ -59,7 +59,7 @@ Resonance uses a feature-based organization to keep the codebase scalable:
 - `src/features/`: Core business logic (voices, text-to-speech, billing).
 - `src/app/`: Next.js App Router and API routes.
 - `src/trpc/`: Typesafe API definitions and routers.
-- `src/lib/`: Shared client/server utilities (DB, R2, Polar).
+- `src/lib/`: Shared client/server utilities (DB, S3, Polar).
 - `src/components/ui/`: Low-level shadcn/ui components.
 - `chatterbox_tts.py`: The Modal-deployed Python TTS engine.
 
