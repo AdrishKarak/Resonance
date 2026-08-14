@@ -5,12 +5,13 @@
 import modal
 
 
-# S3 cloud bucket mount (read-only, replaces Modal Volume)
+# GCS / Firebase cloud bucket mount (read-only, replaces Modal Volume)
 S3_BUCKET_NAME = "sonic-ffff8.firebasestorage.app"
 R2_MOUNT_PATH = "/r2"
 s3_bucket = modal.CloudBucketMount(
     S3_BUCKET_NAME,
-    secret=modal.Secret.from_name("aws-s3-secret"),
+    bucket_endpoint_url="https://storage.googleapis.com",
+    secret=modal.Secret.from_name("gcp-secret"),
     read_only=True,
 )
 
@@ -70,7 +71,7 @@ with image.imports():
     secrets=[
         modal.Secret.from_name("hf-token"),
         modal.Secret.from_name("chatterbox-api-key"),
-        modal.Secret.from_name("aws-s3-secret"),
+        modal.Secret.from_name("gcp-secret"),
     ],
     volumes={R2_MOUNT_PATH: s3_bucket},
 )

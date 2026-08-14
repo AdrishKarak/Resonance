@@ -9,6 +9,7 @@ import { env } from "./env";
 
 const r2 = new S3Client({
     region: env.AWS_REGION,
+    endpoint: "https://storage.googleapis.com",
     credentials: {
         accessKeyId: env.R2_ACCESS_KEY_ID,
         secretAccessKey: env.R2_SECRET_ACCESS_KEY,
