@@ -1,0 +1,11 @@
+{
+  "enable": false,
+  "diagnostics": {
+    "enable": false
+  },
+  "exclude": [
+    "**/*",
+    "**/*_pyrefy_virtual_inmemory*",
+    "**/_pyrefy_virtual_inmemory/**"
+  ]
+}

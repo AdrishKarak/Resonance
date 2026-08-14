@@ -1,15 +1,16 @@
+# pyright: reportMissingImports=false
+# type: ignore
 """Chatterbox TTS API - Text-to-speech with voice cloning on Modal."""
 
 import modal
 
 
-# R2 cloud bucket mount (read-only, replaces Modal Volume)
-R2_BUCKET_NAME = "adrish-resonance-uploads"
-R2_ACCOUNT_ID = "869483685615"
+# S3 cloud bucket mount (read-only, replaces Modal Volume)
+S3_BUCKET_NAME = "adrish-resonance-uploads"
 R2_MOUNT_PATH = "/r2"
-r2_bucket = modal.CloudBucketMount(
-    R2_BUCKET_NAME,
-    secret=modal.Secret.from_name("cloudflare-r2"),
+s3_bucket = modal.CloudBucketMount(
+    S3_BUCKET_NAME,
+    secret=modal.Secret.from_name("aws-s3-secret"),
     read_only=True,
 )
 
@@ -69,9 +70,9 @@ with image.imports():
     secrets=[
         modal.Secret.from_name("hf-token"),
         modal.Secret.from_name("chatterbox-api-key"),
-        modal.Secret.from_name("cloudflare-r2"),
+        modal.Secret.from_name("aws-s3-secret"),
     ],
-    volumes={R2_MOUNT_PATH: r2_bucket},
+    volumes={R2_MOUNT_PATH: s3_bucket},
 )
 @modal.concurrent(max_inputs=10)
 class Chatterbox:

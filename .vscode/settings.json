@@ -1,0 +1,18 @@
+{
+  "pyrefy.enable": false,
+  "pyrefy.diagnostics.enable": false,
+  "pyrefy.linter.enable": false,
+  "pyrefy.typeCheckingMode": "off",
+  "python.analysis.typeCheckingMode": "off",
+  "python.analysis.ignore": [
+    "**/*_pyrefy_virtual_inmemory*",
+    "**/_pyrefy_virtual_inmemory/**"
+  ],
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "none",
+    "reportUndefinedVariable": "none"
+  },
+  "python.analysis.extraPaths": [
+    "/home/adrish/.local/share/pipx/venvs/modal/lib/python3.12/site-packages"
+  ]
+}
