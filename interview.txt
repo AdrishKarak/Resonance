@@ -1,0 +1,374 @@
+================================================================================
+                     SONIC / RESONANCE CODEBASE INTERVIEW GUIDE
+                        Target Role: Software Engineer (Fresher)
+                         Hiring Team Technical Evaluation
+================================================================================
+
+Welcome to the technical evaluation question bank for the Sonic/Resonance codebase.
+Sonic is a high-performance, AI-powered text-to-speech platform featuring voice cloning 
+and synthesis, built with a serverless-first architecture.
+
+This document contains exhaustive technical interview questions and detailed model 
+answers covering architecture, tech stack justification, deep code execution mechanics, 
+database modeling, AI inference infrastructure, security, billing integration, 
+resilience edge cases, and future system optimizations.
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. Architecture & System Overview
+2. Tech Stack & Framework Choices ("Why this technology?")
+3. Authentication, Authorization & Multi-Tenancy
+4. Database Design & ORM Mechanics (Prisma 7 & PostgreSQL)
+5. End-to-End Type-Safe API Layer (tRPC v11, Zod, OpenAPI)
+6. Object Storage & Media Handling (Cloudflare R2 / AWS S3 API)
+7. AI/ML Infrastructure & GPU Inference (Modal & Chatterbox TTS)
+8. Billing, Monetization & Metering Integration (Polar.sh)
+9. Observability & Telemetry (Sentry Integration)
+10. Deep Execution Flows ("How & Why this is happening")
+11. Edge Cases, Failure Modes & Resilience Engineering
+12. System Improvements & Scalability Roadmap ("How to improve this?")
+
+================================================================================
+SECTION 1: ARCHITECTURE & SYSTEM OVERVIEW
+================================================================================
+
+Q1.1: Can you explain the high-level architecture of Sonic and how the different services interact?
+--------------------------------------------------------------------------------
+Answer:
+Sonic is built using a modern, serverless-first micro-service/decoupled architecture designed to separate latency-sensitive UI operations from compute-heavy AI model inference:
+
+1. Web Frontend & API Gateway (Next.js 16 App Router & React 19):
+   - Handles server rendering, UI components, client-side state, and routing.
+   - Provides end-to-end typesafe APIs using tRPC v11 and custom REST endpoints.
+2. Authentication & Multi-Tenancy (Clerk):
+   - Manages user identity, session management, and organization-based tenant routing via Next.js middleware (src/proxy.ts).
+3. Primary Database (PostgreSQL + Prisma 7 ORM):
+   - Stores metadata for Voices, Voice Categories, and Audio Generations. Connected via Prisma's PostgreSQL adapter (@prisma/adapter-pg).
+4. Storage Layer (Cloudflare R2 / S3 API):
+   - Stores custom audio reference samples and generated audio WAV files. Securely accessed via AWS S3 SDK v3 using Signed URLs.
+5. Dedicated AI Inference Engine (Modal + Python/FastAPI):
+   - A GPU-accelerated microservice (TTS/chatterbox_tts.py) running ChatterboxTurboTTS model on NVIDIA A10G GPUs.
+   - Reads reference audio directly from Cloudflare R2 mounted via Modal's `CloudBucketMount`.
+6. Billing & Usage Metering (Polar.sh):
+   - Enforces subscription checks prior to voice creation or TTS generation and ingests meter events for usage-based billing.
+7. Telemetry & Observability (Sentry):
+   - Captures runtime server exceptions, client errors, and traces API performance via custom Sentry middleware.
+
+--------------------------------------------------------------------------------
+Q1.2: Why is the AI generation logic separated into Modal (Python) instead of running directly inside Next.js/Node.js?
+--------------------------------------------------------------------------------
+Answer:
+- Hardware Requirements: ML model inference (PyTorch, torchaudio, CUDA) requires specialized GPU acceleration (e.g., NVIDIA A10G GPUs). Node.js serverless runtimes (like Vercel or AWS Lambda) run on lightweight CPU containers without GPU access.
+- Cold Starts & Memory Footprint: ML models like ChatterboxTurboTTS require gigabytes of VRAM and heavy binary dependencies (torch, peft, chatterbox-tts). Running this in Node.js would lead to massive bundle sizes and slow boot times.
+- Auto-scaling & Cost Efficiency: Modal scales GPU containers down to 0 after 5 minutes of inactivity (`scaledown_window=300`) and auto-scales concurrently up to 10 requests per container instance, preventing idle GPU costs.
+
+
+================================================================================
+SECTION 2: TECH STACK & FRAMEWORK CHOICES ("Why this technology?")
+================================================================================
+
+Q2.1: Why did we choose Next.js 16 App Router and React 19 for the frontend?
+--------------------------------------------------------------------------------
+Answer:
+- React Server Components (RSC): Allows server-side fetching of database records and pre-rendering HTML without shipping heavy client-side JavaScript bundles.
+- Next.js 16 Proxy Middleware (`src/proxy.ts`): Provides centralized request intercepting to validate Clerk authentication and route users to organization selection screens before requests reach application routes.
+- Enhanced Developer Experience & Performance: Built-in routing, layout nesting, automatic code-splitting, and native support for server actions and streaming.
+
+--------------------------------------------------------------------------------
+Q2.2: Why use tRPC v11 over traditional REST or GraphQL for internal APIs?
+--------------------------------------------------------------------------------
+Answer:
+- End-to-End Type Safety: tRPC shares TypeScript types directly between the backend routers (`src/trpc/routers/*`) and the frontend client without requiring code generation steps.
+- Compile-time Validation: Changes to backend procedure signatures immediately surface as TypeScript compiler errors on the client.
+- Low Overhead: Unlike GraphQL, tRPC requires no schema parsers, resolvers, or heavy runtime libraries on the client.
+- Automatic Serialization: Integrated with `superjson` transformer to support complex JavaScript types like `Date`, `BigInt`, and `Undefined` transparently over JSON HTTP requests.
+
+--------------------------------------------------------------------------------
+Q2.3: Why choose Prisma 7 with `@prisma/adapter-pg` driver adapter?
+--------------------------------------------------------------------------------
+Answer:
+- Edge & Serverless Compatibility: Traditional Prisma engines rely on Rust binaries that open direct TCP connections, which can hit connection limits in serverless runtimes.
+- `@prisma/adapter-pg`: Leverages the standard `pg` pool driver, allowing connection pooling (e.g., via PgBouncer / Supabase / Neon) and reducing binary overhead while preserving Prisma's typesafe query builder.
+
+--------------------------------------------------------------------------------
+Q2.4: Why use `@t3-oss/env-nextjs` for environment variable management (`src/lib/env.ts`)?
+--------------------------------------------------------------------------------
+Answer:
+- Strict Runtime & Build-time Validation: Validates environment variables against Zod schemas on startup. If a required secret (e.g. `DATABASE_URL` or `POLAR_ACCESS_TOKEN`) is missing or invalid, the app fails fast at boot with clear error diagnostics rather than crashing silently during runtime.
+- Client/Server Boundary Enforcement: Explicitly separates server-only variables from `experimental__runtimeEnv` to prevent sensitive credentials (e.g. `R2_SECRET_ACCESS_KEY`) from leaking into client-side JS bundles.
+
+
+================================================================================
+SECTION 3: AUTHENTICATION, AUTHORIZATION & MULTI-TENANCY
+================================================================================
+
+Q3.1: How does Sonic implement Multi-Tenancy and Organization Access Control?
+--------------------------------------------------------------------------------
+Answer:
+Sonic uses Clerk for multi-tenant identity and organization management:
+1. Middleware Interception (`src/proxy.ts`):
+   - Checks user authentication (`auth()`).
+   - Redirects unauthenticated users to `/landing` or `/sign-in`.
+   - Forces authenticated users who do not have an active organization selected to `/org-selection`.
+2. tRPC Middleware (`src/trpc/init.ts`):
+   - Defines `orgProcedure` which validates both `userId` and `orgId`. If `orgId` is missing, it throws a `TRPCError({ code: "FORBIDDEN", message: "Organization required" })`.
+3. Database Scoping:
+   - All data operations query records scoped to `ctx.orgId` (e.g., `where: { orgId: ctx.orgId }` in `generations.ts` and `voices.ts`).
+
+--------------------------------------------------------------------------------
+Q3.2: How does the system handle System Voices vs. Custom Voices security?
+--------------------------------------------------------------------------------
+Answer:
+In `src/trpc/routers/voices.ts`:
+- System Voices (`variant: "SYSTEM"`): Shared globally across all users and organizations. Filtered without `orgId`.
+- Custom Voices (`variant: "CUSTOM"`): Strictly owned by a specific organization. Filtered using `where: { variant: "CUSTOM", orgId: ctx.orgId }`.
+When executing TTS generation (`src/trpc/routers/generations.ts`), the query verifies:
+`where: { id: input.voiceId, OR: [{ variant: "SYSTEM" }, { variant: "CUSTOM", orgId: ctx.orgId }] }`
+This prevents Organization A from using or reading a custom voice belonging to Organization B.
+
+
+================================================================================
+SECTION 4: DATABASE DESIGN & ORM MECHANICS (Prisma 7)
+================================================================================
+
+Q4.1: Explain the schema design in `prisma/schema.prisma`. What models exist and what indexes are defined?
+--------------------------------------------------------------------------------
+Answer:
+The database schema consists of two main models and two enums:
+
+Enums:
+- `VoiceVariant`: `SYSTEM` | `CUSTOM`
+- `VoiceCategory`: `AUDIOBOOK`, `CONVERSATIONAL`, `NARRATIVE`, `PODCAST`, etc.
+
+Models:
+1. `Voice`:
+   - `id`: CUID primary key (`@default(cuid())`).
+   - `orgId`: Nullable string (null for system voices, string for custom org voices).
+   - `name`, `description`, `category`, `language`, `variant`, `r2ObjectKey`.
+   - Indexes: `@@index([variant])` and `@@index([orgId])`.
+2. `Generation`:
+   - `id`: CUID primary key.
+   - `orgId`: String (required).
+   - `voiceId`: Nullable foreign key referencing `Voice(id)` with `onDelete: SetNull`.
+   - Stores prompt parameters: `text`, `voiceName`, `r2ObjectKey`, `temperature`, `topP`, `topK`, `repetitionPenalty`.
+   - Indexes: `@@index([orgId])` and `@@index([voiceId])`.
+
+--------------------------------------------------------------------------------
+Q4.2: Why use `onDelete: SetNull` on `Generation.voiceId`?
+--------------------------------------------------------------------------------
+Answer:
+If a user deletes a custom voice (`voices.delete`), we do not want past generated audio outputs to be deleted (cascade delete). By setting `onDelete: SetNull`, historical generation records remain intact in the user's history log (`voiceName` is snapshot in `Generation`), while the foreign key `voiceId` gracefully becomes `null`.
+
+--------------------------------------------------------------------------------
+Q4.3: Why use CUID (`cuid()`) instead of auto-increment integers or standard UUID v4?
+--------------------------------------------------------------------------------
+Answer:
+- Auto-increment integers expose total system volume to end-users (security by obfuscation) and cause high database lock contention in distributed serverless writes.
+- CUIDs are sequentially sortable by creation time, collision-resistant, web-friendly, and optimal for database B-tree index locality compared to random UUIDv4.
+
+
+================================================================================
+SECTION 5: END-TO-END TYPE-SAFE API LAYER (tRPC v11, Zod, OpenAPI)
+================================================================================
+
+Q5.1: How does tRPC handle input validation and error handling?
+--------------------------------------------------------------------------------
+Answer:
+- Input Validation: Uses Zod schemas attached via `.input(...)`. For example, `generations.create` validates:
+  - `text`: string min 1, max `TEXT_MAX_LENGTH` (5000 chars).
+  - `temperature`: number min 0, max 2.
+  - `topP`: number min 0, max 1.
+  - `topK`: integer min 1, max 10000.
+  - `repetitionPenalty`: number min 1, max 2.
+- Error Handling: If validation fails, tRPC throws a `BAD_REQUEST` error containing field-level Zod issues. Internal server failures throw explicit `TRPCError` instances (e.g. `NOT_FOUND`, `FORBIDDEN`, `INTERNAL_SERVER_ERROR`).
+
+--------------------------------------------------------------------------------
+Q5.2: How does the project sync TypeScript types with the Python Modal backend?
+--------------------------------------------------------------------------------
+Answer:
+Sonic uses an automated API synchronization pipeline (`scripts/sync-api.ts`):
+1. Modal FastAPI exposes an auto-generated OpenAPI JSON spec at `${CHATTERBOX_API_URL}/openapi.json`.
+2. `npm run sync-api` runs `scripts/sync-api.ts`, which fetches `openapi.json` and uses `openapi-typescript` to generate strict TypeScript type definitions in `src/types/chatterbox-api.d.ts`.
+3. `src/lib/chatterbox-client.ts` uses `openapi-fetch` parameterized with these `paths` types, giving full type-safety and auto-completion when calling Modal's `/generate` POST endpoint from Node.js.
+
+
+================================================================================
+SECTION 6: OBJECT STORAGE & MEDIA HANDLING (Cloudflare R2 / AWS S3 API)
+================================================================================
+
+Q6.1: How does Sonic store and serve audio files securely? Why not return raw public S3 URLs?
+--------------------------------------------------------------------------------
+Answer:
+1. Storage Bucket: Audio files (voice samples and generated WAVs) are stored in Cloudflare R2 / Google Cloud Storage S3-compatible buckets.
+2. Direct Bucket Access Blocked: Audio bucket contents are kept private (`r2ObjectKey` is hidden from direct public internet exposure).
+3. Access Control via Proxy / Signed URLs:
+   - For generated audio: Client calls `/api/audio/[generationId]`. The route checks auth (`userId`, `orgId`), verifies DB ownership, requests a short-lived Signed URL (1 hour expiration) via `getSignedAudioUrl(key)` in `src/lib/r2.ts`, fetches audio stream from R2, and streams response with `Cache-Control: private, max-age=3600`.
+   - For system voices: Served via `/api/voices/[voiceId]` with `Cache-Control: public, max-age=86400`.
+
+--------------------------------------------------------------------------------
+Q6.2: How are audio files validated during Custom Voice creation?
+--------------------------------------------------------------------------------
+Answer:
+In `src/app/api/voices/create/route.ts`:
+1. File Size Limit: Rejects uploads larger than 20 MB (`MAX_UPLOAD_SIZE_BYTES`).
+2. Buffer Metadata Parsing: Uses `music-metadata` (`parseBuffer`) to parse the audio header without writing to disk.
+3. Duration Check: Validates that `metadata.format.duration >= 10` seconds (`MIN_AUDIO_DURATION_SECONDS`). If under 10 seconds or unparseable, returns HTTP 422 Unprocessable Entity.
+
+
+================================================================================
+SECTION 7: AI/ML INFRASTRUCTURE & GPU INFERENCE (Modal & Chatterbox)
+================================================================================
+
+Q7.1: Describe the Modal Python configuration in `TTS/chatterbox_tts.py`.
+--------------------------------------------------------------------------------
+Answer:
+- GPU Specification: `@app.cls(gpu="a10g", scaledown_window=300)`. Runs on NVIDIA A10G GPUs (24GB VRAM). Scaledown window retains warm container for 5 minutes after last request.
+- Concurrency: `@modal.concurrent(max_inputs=10)`. Allows a single container instance to process up to 10 incoming inference requests concurrently.
+- Warm Model Loading: Model weight loading (`ChatterboxTurboTTS.from_pretrained(device="cuda")`) is placed in `@modal.enter()`. This executes ONCE when the container boots up, keeping the model warm in GPU VRAM so subsequent HTTP requests don't suffer 10+ second model loading delays.
+- Cloud Bucket Mount: `modal.CloudBucketMount` mounts the Cloudflare R2/GCS bucket to container filesystem at `/r2`. This allows Modal to read reference audio files directly as local disk paths (`Path("/r2") / request.voice_key`) without performing manual S3 HTTP network downloads.
+
+--------------------------------------------------------------------------------
+Q7.2: How is the Modal FastAPI endpoint secured against unauthorized invocation?
+--------------------------------------------------------------------------------
+Answer:
+FastAPI relies on custom API Key security middleware (`verify_api_key`):
+- Expects an `x-api-key` HTTP header.
+- Compares incoming key against `os.environ["CHATTERBOX_API_KEY"]` loaded from Modal Secret (`modal.Secret.from_name("chatterbox-api-key")`).
+- Returns `HTTP 403 Forbidden` if header is missing or incorrect.
+
+
+================================================================================
+SECTION 8: MONETIZATION & USAGE METERING (Polar.sh Integration)
+================================================================================
+
+Q8.1: How is Polar.sh integrated into the application workflow?
+--------------------------------------------------------------------------------
+Answer:
+1. Subscription Verification: Before permitting Voice Creation (`src/app/api/voices/create/route.ts`) or Audio Generation (`src/trpc/routers/generations.ts`), the backend queries Polar API: `polar.customers.getStateExternal({ externalId: ctx.orgId })`. It verifies `activeSubscriptions.length > 0`. If absent, returns HTTP 403 / `FORBIDDEN` error.
+2. Usage Event Metering: Upon successful generation, an event is ingested to Polar asynchronously:
+   `polar.events.ingest({ events: [{ name: env.POLAR_METER_TTS_GENERATION, externalCustomerId: ctx.orgId, metadata: { characters: input.text.length }, timestamp: new Date() }] })`
+3. Checkout & Customer Portal: `billing.createCheckout` generates Polar payment links; `billing.createPortalSession` generates self-service subscription management portal URLs.
+
+
+================================================================================
+SECTION 9: OBSERVABILITY & TELEMETRY (Sentry Integration)
+================================================================================
+
+Q9.1: How is Sentry configured across Next.js and tRPC?
+--------------------------------------------------------------------------------
+Answer:
+1. Next.js Instrumentation: `src/instrumentation.ts` registers `sentry.server.config.ts` for Node.js runtime and `sentry.edge.config.ts` for Edge runtime, capturing uncaught request errors with `onRequestError`.
+2. tRPC Middleware Integration: `baseProcedure` in `src/trpc/init.ts` applies `Sentry.trpcMiddleware({ attachRpcInput: true })`. This automatically attaches tRPC procedure names and inputs to Sentry error context.
+3. Structured Logging: `Sentry.logger.info` and `Sentry.logger.error` are logged at key milestone events in the generation pipeline.
+
+
+================================================================================
+SECTION 10: DEEP EXECUTION FLOWS ("How & Why this is happening")
+================================================================================
+
+Q10.1: Trace the step-by-step lifecycle of a TTS Audio Generation request.
+--------------------------------------------------------------------------------
+Answer:
+1. Client Dispatch: User inputs prompt text and clicks "Generate". Client sends `generations.create` mutation via tRPC link (`httpBatchLink`).
+2. Authentication & Authorization: `orgProcedure` middleware calls Clerk `auth()`, extracts `userId` and `orgId`. Throws `UNAUTHORIZED` or `FORBIDDEN` if absent.
+3. Active Subscription Verification: Router calls Polar SDK `polar.customers.getStateExternal({ externalId: orgId })`. If customer has no active subscription, throws `FORBIDDEN` with message `"SUBSCRIPTION_REQUIRED"`.
+4. Voice Resolution: Queries Prisma `prisma.voice.findUnique` matching `voiceId` and (`variant == SYSTEM` OR `orgId == ctx.orgId`). Extracts `r2ObjectKey`.
+5. Modal AI Inference: Sends HTTP POST request via `chatterbox.POST("/generate", ...)` to Modal FastAPI. Modal verifies `x-api-key`, reads voice WAV from `/r2/<key>`, runs CUDA inference with `ChatterboxTurboTTS`, returns binary WAV `ArrayBuffer`.
+6. Database Record Pre-creation: Inserts draft row into `prisma.generation.create` storing prompt text, hyper-parameters, and voice reference.
+7. R2 Audio Upload: Converts `ArrayBuffer` to Node `Buffer`. Uploads WAV file to Cloudflare R2 key `generations/orgs/{orgId}/{generationId}` via `uploadAudio()`.
+8. Database Record Update: Updates Prisma generation record with `r2ObjectKey`.
+9. Asynchronous Metering: Ingests character count event to Polar meter (`polar.events.ingest`). Wrapped in try-catch to avoid failing user response if metering network hiccups occur.
+10. Response: Returns `{ id: generationId }` to client UI, which then triggers audio playback via `/api/audio/[generationId]`.
+
+
+================================================================================
+SECTION 11: EDGE CASES, FAILURE MODES & RESILIENCE ENGINEERING
+================================================================================
+
+Q11.1: What happens if database creation succeeds, but uploading the audio to Cloudflare R2 fails?
+--------------------------------------------------------------------------------
+Answer:
+In `src/trpc/routers/generations.ts`:
+The system implements a compensating transaction cleanup pattern inside a try-catch block:
+If `uploadAudio({ buffer, key: r2ObjectKey })` throws an error during the R2 upload step:
+1. The catch block catches the failure.
+2. It executes `await prisma.generation.delete({ where: { id: generationId } })` to delete the orphaned database record.
+3. Logs the failure to Sentry (`Sentry.logger.error`).
+4. Throws a user-friendly `TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to store generated audio" })`.
+This prevents dangling database records without corresponding storage assets.
+
+--------------------------------------------------------------------------------
+Q11.2: What happens if Polar.sh metering API is down during audio generation?
+--------------------------------------------------------------------------------
+Answer:
+The Polar event ingestion call is intentionally wrapped in a silent try-catch block:
+`try { await polar.events.ingest(...); } catch (err) { Sentry.captureException(err); console.error(...); }`
+Metering is a non-critical side effect relative to user experience. If Polar API experiences downtime, the exception is logged to Sentry for audit recovery, but the generated audio is successfully returned to the user without throwing an error.
+
+--------------------------------------------------------------------------------
+Q11.3: How does global Prisma client instantiation avoid connection leaks in Next.js development?
+--------------------------------------------------------------------------------
+Answer:
+In `src/lib/db.ts`:
+Next.js fast-reloads modules on every code change in development mode. Re-instantiating `new PrismaClient()` on every hot reload exhausts PostgreSQL database connections.
+`src/lib/db.ts` uses the global singleton pattern:
+`const globalForPrisma = global as unknown as { prisma: PrismaClient };`
+`export const prisma = globalForPrisma.prisma || new PrismaClient({ adapter });`
+`if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;`
+This binds the client instance to Node's `global` object, preserving a single active connection pool during development hot-reloads.
+
+
+================================================================================
+SECTION 12: SYSTEM IMPROVEMENTS & SCALABILITY ROADMAP ("How to improve this?")
+================================================================================
+
+Q12.1: How would you improve the TTS Generation architecture for long texts (e.g., 5,000+ words)?
+--------------------------------------------------------------------------------
+Answer:
+Current Limitation:
+The current implementation performs synchronous HTTP requests (`chatterbox.POST("/generate")`) within the tRPC mutation lifecycle. For long text prompts, HTTP requests risk timing out (Vercel serverless functions timeout at 15-60 seconds, Modal HTTP timeouts).
+
+Proposed Architecture Improvements:
+1. Asynchronous Job Queue Pattern:
+   - Convert `generations.create` to enqueue an async background job using Inngest, BullMQ (Redis), or AWS SQS.
+   - Return a `jobId` immediately with status `PENDING`.
+2. Chunking & Parallel Synthesis:
+   - Split long text into paragraphs/sentences at punctuation boundaries.
+   - Dispatch parallel Modal inference calls for text chunks across scaled GPU containers.
+   - Concatenate output WAV buffers using `ffmpeg` or `torchaudio`.
+3. Real-Time WebSockets / Server-Sent Events (SSE):
+   - Stream audio chunks back to the client as they finish generating, allowing audio playback to start within 500ms rather than waiting for the entire document synthesis.
+   - Update job status in database to `COMPLETED` and send a Webhook or tRPC Subscription update.
+
+--------------------------------------------------------------------------------
+Q12.2: How can asset deletion resilience be improved?
+--------------------------------------------------------------------------------
+Answer:
+Current Implementation:
+In `src/trpc/routers/voices.ts`:
+When deleting a custom voice:
+`await prisma.voice.delete({ where: { id: voice.id } });`
+`if (voice.r2ObjectKey) await deleteAudio(voice.r2ObjectKey).catch(() => {});`
+If `deleteAudio` fails (network failure, storage timeout), the database record is already gone, leaving an orphaned WAV file in Cloudflare R2 indefinitely.
+
+Proposed Solution:
+1. Outbox Pattern / Soft Delete: Mark record `deletedAt: new Date()` instead of hard deleting immediately.
+2. Background Garbage Collection Cron Job: Run a scheduled job (e.g. via Next.js CRON or Modal scheduled function) that queries soft-deleted records, deletes associated R2 objects, and then hard-deletes DB records after successful storage deletion.
+
+--------------------------------------------------------------------------------
+Q12.3: How would you implement Automated Testing for this codebase?
+--------------------------------------------------------------------------------
+Answer:
+Currently, the codebase lacks automated test coverage. To achieve robust quality assurance:
+1. Unit Tests (Vitest):
+   - Test utility functions in `src/lib/utils.ts` and Zod validation schemas (`createVoiceSchema`, `generations.create` inputs).
+2. API & Router Tests (Vitest + tRPC Caller):
+   - Use `createCallerFactory` from `@trpc/server` to instantiate router callers with mock contexts (`ctx: { userId: "user_123", orgId: "org_123" }`).
+   - Mock Prisma DB queries and Modal HTTP responses to test route authorization, Polar subscription validation logic, and error boundaries.
+3. End-to-End Tests (Playwright):
+   - Test full user journey: Auth login mock -> Voice creation -> Audio generation trigger -> Player controls.
+
+================================================================================
+                            END OF INTERVIEW GUIDE
+================================================================================
