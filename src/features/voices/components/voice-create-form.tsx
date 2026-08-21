@@ -65,6 +65,9 @@ import {
 import { VoiceRecorder } from "./voice-recorder";
 
 
+// Searchable language list for the combobox: only locale tags with a country
+// subtag (e.g. "en-US") are offered, since the voice card UI derives its
+// flag/region display from that subtag.
 const LANGUAGE_OPTIONS = locales.all
     .filter((l) => l.tag && l.tag.includes("-") && l.name)
     .map((l) => ({
@@ -72,6 +75,12 @@ const LANGUAGE_OPTIONS = locales.all
         label: l.location ? `${l.name} (${l.location})` : l.name,
     }));
 
+/**
+ * Zod schema mirroring the server-side validation in /api/voices/create.
+ * Runs on submit (TanStack Form `validators.onSubmit`); the file field must
+ * be a non-null File instance, which is what both the dropzone and recorder
+ * produce via `onFileChange`.
+ */
 const voiceCreateFormSchema = z.object({
     name: z.string().min(1, "Name is required"),
     file: z
@@ -83,6 +92,18 @@ const voiceCreateFormSchema = z.object({
     description: z.string(),
 });
 
+/**
+ * Upload tab content: a drag-and-drop dropzone that collapses into a file
+ * preview (with playback and remove actions) once a file is chosen.
+ * Accepts any audio format up to 20 MB — the same cap enforced server-side by
+ * /api/voices/create, so users get early feedback before uploading.
+ *
+ * @param file - Current file on the form field; presence switches to preview.
+ * @param onFileChange - Writes the accepted file (or null on remove) to the
+ *   form's `file` field.
+ * @param isInvalid - Highlights the dropzone border when validation failed.
+ * @returns The dropzone or preview markup.
+ */
 function FileDropzone({
     file,
     onFileChange,
@@ -92,6 +113,7 @@ function FileDropzone({
     onFileChange: (file: File | null) => void;
     isInvalid?: boolean;
 }) {
+    // In-browser playback of the selected file for previewing.
     const { isPlaying, togglePlay } = useAudioPlayback(file);
 
     const {
@@ -181,6 +203,16 @@ function FileDropzone({
     )
 };
 
+/**
+ * Searchable language selector: a popover combobox over the full
+ * `LANGUAGE_OPTIONS` list. Stores the raw locale tag (e.g. "en-US") as the
+ * form value while displaying the friendly label.
+ *
+ * @param value - Currently selected locale tag.
+ * @param onChange - Writes the selected tag back to the form field.
+ * @param isInvalid - Marks the trigger with aria-invalid styling on error.
+ * @returns The combobox markup.
+ */
 function LanguageCombobox({
     value,
     onChange,
@@ -248,12 +280,27 @@ function LanguageCombobox({
     );
 };
 
+/** Props for {@link VoiceCreateForm}. */
 interface VoiceCreateFormProps {
+    /** When true, the fields area becomes a flex-filling scroll region (used
+     *  inside the mobile Drawer so its footer stays pinned). */
     scrollable?: boolean;
+    /** Optional render prop receiving the submit button, letting hosts place
+     *  it in their own footer (e.g. DrawerFooter with a Cancel button). */
     footer?: (submit: React.ReactNode) => React.ReactNode;
+    /** Optional error handler; when provided it replaces the default toast,
+     *  used by the dialog to special-case "SUBSCRIPTION REQUIRED". */
     onError?: (message: string) => void;
 };
 
+/**
+ * Renders the full voice creation form and owns its submission lifecycle.
+ *
+ * @param scrollable - Enables the drawer-friendly scrolling layout.
+ * @param footer - Render prop for custom placement of the submit button.
+ * @param onError - Custom error sink overriding the default toast.
+ * @returns The form markup: sample tabs, metadata fields, and submit action.
+ */
 export function VoiceCreateForm({
     scrollable,
     footer,
@@ -262,6 +309,9 @@ export function VoiceCreateForm({
     const trpc = useTRPC();
     const queryClient = useQueryClient();
 
+    // Submission goes straight to the /api/voices/create Route Handler rather
+    // than tRPC because the payload is a raw binary audio file. Metadata
+    // travels as query params so the body can remain a pure byte stream.
     const createMutation = useMutation({
         mutationFn: async ({
             name,
@@ -285,6 +335,8 @@ export function VoiceCreateForm({
                 params.set("description", description);
             }
 
+            // Content-Type is set from the file's MIME type so the server's
+            // music-metadata parser receives an accurate hint.
             const response =
                 await fetch(`/api/voices/create?${params.toString()}`, {
                     method: "POST",
@@ -302,6 +354,8 @@ export function VoiceCreateForm({
     });
 
     const form = useForm({
+        // Defaults chosen so the form is valid-ish out of the box except for
+        // the required file/name; category/language have sensible presets.
         defaultValues: {
             name: "",
             file: null as File | null,
@@ -316,6 +370,7 @@ export function VoiceCreateForm({
             try {
                 await createMutation.mutateAsync({
                     name: value.name,
+                    // Non-null asserted: the zod schema guarantees a File here.
                     file: value.file!,
                     category: value.category,
                     language: value.language,
@@ -323,9 +378,11 @@ export function VoiceCreateForm({
                 });
 
                 toast.success("Voice created successfully!");
+                // Refetch lists so the new custom voice appears immediately…
                 queryClient.invalidateQueries({
                     queryKey: trpc.voices.getAll.queryKey(),
                 });
+                // …and refresh billing since each creation is metered usage.
                 queryClient.invalidateQueries({
                     queryKey: trpc.billing.getStatus.queryKey(),
                 });
@@ -334,6 +391,8 @@ export function VoiceCreateForm({
                 const message =
                     error instanceof Error ? error.message : "Failed to create voice";
 
+                // Surface via host-provided handler (lets the dialog react to
+                // "SUBSCRIPTION REQUIRED") or fall back to a plain toast.
                 if (onError) {
                     onError(message);
                 } else {
@@ -361,8 +420,12 @@ export function VoiceCreateForm({
                         : "flex flex-col gap-6",
                 )}
             >
+                {/* Step 1: audio sample. Both tabs write to the same `file`
+                    form field, so switching tabs mid-flow preserves the take. */}
                 <form.Field name="file">
                     {(field) => {
+                        // Errors only surface after the user has interacted
+                        // (or a submit attempt touched the field).
                         const isInvalid =
                             field.state.meta.isTouched && !field.state.meta.isValid;
 
@@ -401,6 +464,7 @@ export function VoiceCreateForm({
                     }}
                 </form.Field>
 
+                {/* Step 2: voice label. */}
                 <form.Field name="name">
                     {(field) => {
                         const isInvalid =
@@ -429,6 +493,8 @@ export function VoiceCreateForm({
                     }}
                 </form.Field>
 
+                {/* Step 3: category, options sourced from the Prisma enum
+                    constants shared with server-side validation. */}
                 <form.Field name="category">
                     {(field) => {
                         const isInvalid =
@@ -464,6 +530,7 @@ export function VoiceCreateForm({
                     }}
                 </form.Field>
 
+                {/* Step 4: language via searchable combobox. */}
                 <form.Field name="language">
                     {(field) => {
                         const isInvalid =
@@ -481,6 +548,7 @@ export function VoiceCreateForm({
                     }}
                 </form.Field>
 
+                {/* Step 5: optional description. */}
                 <form.Field name="description">
                     {(field) => {
                         const isInvalid =
@@ -510,6 +578,9 @@ export function VoiceCreateForm({
                     }}
                 </form.Field>
 
+                {/* Submit button subscribes only to isSubmitting so it
+                    re-renders in isolation; hosts may relocate it via the
+                    footer render prop (e.g. into a DrawerFooter). */}
                 <form.Subscribe
                     selector={(s) => ({
                         isSubmitting: s.isSubmitting,

@@ -3,6 +3,24 @@
 import { useEffect, useRef } from "react";
 import { Mic, Zap, Globe, Headphones, Sparkles } from "lucide-react";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Features Bento Grid
+ * -----------------------------------------------------------------------------
+ * The "Features" section of the landing page: a responsive bento-style grid
+ * of five feature cards (voice library, contextual modes, voice cloning,
+ * in-platform recording, pay-as-you-go). It exists to enumerate the product's
+ * capabilities with light/dark card variants, animated SVG illustrations,
+ * 3D tilt-on-hover for standard cards, and a flip-card treatment for the
+ * pricing feature. It is rendered in the landing page composition
+ * (src/app/landing/page.tsx) between the TTS section and Pricing.
+ */
+
+// Feature card data. Layout/appearance is driven by flags:
+// - `wide`: spans two grid columns
+// - `dark`: renders the dark card variant
+// - `flip`: renders a hover-flip card using the back* fields instead of a
+//   tilt-on-hover standard card
 const features = [
   {
     icon: Globe,
@@ -50,6 +68,9 @@ const features = [
 ];
 
 // --- Animated SVG Illustrations ---
+// Decorative SMIL-animated SVGs, one per feature card (matched by index via
+// the `illustrations` array). Each is positioned absolutely in the card's
+// bottom-right corner at low opacity so it reads as background texture.
 
 function GlobeIllustration() {
   return (
@@ -158,6 +179,8 @@ function ZapIllustration() {
   );
 }
 
+// Index-matched to the `features` array so each card can pull its
+// illustration component without embedding JSX in the data.
 const illustrations = [
   GlobeIllustration,
   HeadphonesIllustration,
@@ -166,9 +189,18 @@ const illustrations = [
   ZapIllustration,
 ];
 
+/**
+ * Features bento grid with scroll reveals, tilt cards, and a flip card.
+ *
+ * @returns The features section: an eyebrow label, headline, and a responsive
+ *   grid of five feature cards rendered from the `features` data.
+ */
 export default function BentoGrid() {
   const sectionRef = useRef<HTMLElement>(null);
 
+  // Scroll-reveal: add the `visible` class (defined in this file's scoped
+  // <style>) to .reveal elements as they enter the viewport at 12% visibility.
+  // Disconnected on unmount to avoid leaks.
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -184,15 +216,23 @@ export default function BentoGrid() {
     return () => observer.disconnect();
   }, []);
 
+  // 3D tilt-on-hover: map the cursor position within the card to a small
+  // rotateX/rotateY around a shared perspective, plus a slight lift. Flip
+  // cards are excluded (isFlip) since their transform is owned by the CSS
+  // flip animation.
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, isFlip: boolean) => {
     if (isFlip) return;
     const card = e.currentTarget;
     const rect = card.getBoundingClientRect();
+    // Normalize cursor to [-0.5, 0.5] from the card center so rotation is
+    // symmetric in both axes.
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
     card.style.transform = `perspective(700px) rotateY(${x * 8}deg) rotateX(${-y * 8}deg) translateY(-3px)`;
   };
 
+  // Reset the inline transform so the CSS transition eases the card back to
+  // its resting state on mouse leave.
   const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>, isFlip: boolean) => {
     if (isFlip) return;
     e.currentTarget.style.transform = "";
@@ -403,10 +443,15 @@ export default function BentoGrid() {
         <div className="bento-grid">
           {features.map((feature, i) => {
             const Icon = feature.icon;
+            // Illustration component is matched to the feature by array index.
             const Illustration = illustrations[i];
+            // Stagger each card's reveal by 70ms for a cascading entrance.
             const delay = `${0.08 + i * 0.07}s`;
 
             if (feature.flip) {
+              // Flip card variant: CSS 3D rotateY(180deg) on hover swaps the
+              // front (feature pitch) for the back (pricing details + code
+              // block + badge). backface-visibility hides the inactive face.
               return (
                 <div
                   key={feature.title}
@@ -435,6 +480,8 @@ export default function BentoGrid() {
               );
             }
 
+            // Standard card variant: light or dark theme, optional 2-column
+            // span, with tilt-on-hover handlers (flip flag passed as false).
             return (
               <div
                 key={feature.title}

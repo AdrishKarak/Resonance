@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Text-to-speech detail view
+ * -----------------------------------------------------------------------------
+ * The workspace shown at /text-to-speech/[generationId] for a previously
+ * generated audio item. It loads the generation record (`generations.getById`)
+ * and available voices (`voices.getAll`) in parallel via suspense, then seeds
+ * the shared form with the generation's saved parameters. Unlike the main view,
+ * it renders the actual audio playback panels (VoicePreviewPanel on desktop,
+ * VoicePreviewMobile on mobile) instead of the empty-state placeholder.
+ */
 import { useSuspenseQueries } from "@tanstack/react-query";
 
 import { useTRPC } from "@/trpc/client";
@@ -13,12 +24,22 @@ import { TTSVoicesProvider } from "../contexts/tts-voices-context";
 import { VoicePreviewPanel } from "../components/voice-preview-panel";
 import { VoicePreviewMobile } from "../components/voice-preview-mobile";
 
+/**
+ * Renders the TTS workspace pre-filled with an existing generation's data.
+ *
+ * @param props.generationId - ID of the generation to load and display.
+ * @returns The voices provider, form provider, and detail workspace layout.
+ */
 export function TextToSpeechDetailView({
     generationId,
 }: {
+    /**
+     * The ID of the generation record to fetch and display.
+     */
     generationId: string;
 }) {
     const trpc = useTRPC();
+    // Fetch the generation and voice list in parallel; both are required to render
     const [
         generationQuery,
         voicesQuery,
@@ -42,6 +63,7 @@ export function TextToSpeechDetailView({
             ? data.voiceId
             : fallbackVoiceId;
 
+    // Seed the form with the exact parameters used when this audio was generated
     const defaultValues: TTSFormValues = {
         text: data.text,
         voiceId: resolvedVoiceId,
@@ -61,6 +83,7 @@ export function TextToSpeechDetailView({
 
     return (
         <TTSVoicesProvider value={{ customVoices, systemVoices, allVoices }}>
+            {/* key remounts the form when navigating between generations */}
             <TextToSpeechForm key={generationId} defaultValues={defaultValues}>
                 <div className="flex min-h-0 flex-1 overflow-hidden">
                     <div className="flex min-h-0 flex-1 flex-col">

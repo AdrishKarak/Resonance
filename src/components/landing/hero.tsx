@@ -7,21 +7,48 @@ import { Play, ArrowRight } from "lucide-react";
 import HeroTitle from "./hero-title";
 import Waveform from "./waveform";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Landing Hero
+ * -----------------------------------------------------------------------------
+ * The full-viewport hero section at the top of the landing page. It combines
+ * an illustrated background with readability overlays, an announcement badge,
+ * the animated headline (HeroTitle), a subtitle, two auth-aware CTA buttons,
+ * a decorative waveform, and a dashboard screenshot preview. It exists to
+ * communicate the product's value proposition in one screen and route
+ * visitors into the app (or sign-up) based on their Clerk auth state. It is
+ * rendered first in the landing page composition
+ * (src/app/landing/page.tsx), directly below the fixed Navbar.
+ */
+
+/**
+ * Landing hero section with animated title, CTAs, and product preview.
+ *
+ * @returns The hero section markup including background imagery, badge,
+ *   headline, subtitle, CTA row, waveform, and dashboard screenshot.
+ */
 export default function Hero() {
   const router = useRouter();
   const { isSignedIn } = useUser();
 
+  // Primary CTA: authenticated users go straight to the app root; guests are
+  // funneled into sign-up first.
   const handleStart = () => {
     router.push(isSignedIn ? "/" : "/sign-up");
   };
 
+  // Secondary CTA: signed-in users can browse voices immediately; guests must
+  // sign in before hearing a demo.
   const handleDemo = () => {
     router.push(isSignedIn ? "/voices" : "/sign-in");
   };
 
   return (
     <section className="relative min-h-[92vh] flex flex-col items-center justify-center text-center px-6 sm:px-12 pt-36 pb-16 overflow-hidden">
-      {/* Illustrated Background */}
+      {/* Illustrated Background — sits at z-0 behind content; `priority`
+          ensures the LCP image is preloaded. A translucent white overlay
+          keeps text readable and a gradient fades the image into the page's
+          sky-canvas background so the hero blends into the next section. */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <Image
           src="/hero-bg.jpg"
@@ -42,7 +69,8 @@ export default function Hero() {
         />
       </div>
 
-      {/* Content */}
+      {/* Content — z-10 above the background; each child uses a staggered
+          fadeSlideUp/Down keyframe delay to choreograph the entrance. */}
       <div className="relative z-10 flex flex-col items-center">
         {/* Badge */}
         <div
@@ -116,7 +144,8 @@ export default function Hero() {
           <Waveform />
         </div>
 
-        {/* Dashboard Screenshot */}
+        {/* Dashboard Screenshot — product preview with a soft radial glow
+            behind the frame to lift it off the background */}
         <div className="relative w-full max-w-[960px] mx-auto mt-14">
           {/* Glow */}
           <div

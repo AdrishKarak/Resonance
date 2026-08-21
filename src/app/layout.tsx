@@ -1,3 +1,14 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Root Layout
+ * -----------------------------------------------------------------------------
+ * The root layout wraps every route in the app (landing, auth, dashboard, and
+ * API-adjacent pages). It exists to establish the single HTML document shell,
+ * load the global font stack and stylesheet, and mount the app-wide providers:
+ * Clerk (authentication), tRPC React (client-side API access), and Nuqs
+ * (type-safe URL search-param state). It also defines the default SEO metadata
+ * (title template, Open Graph, and Twitter cards) inherited by all pages.
+ */
 import type { Metadata } from "next";
 import { Geist_Mono, Inter, Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import "./globals.css";
@@ -6,6 +17,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { TRPCReactProvider } from "@/trpc/client";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+// Google fonts are loaded at build time and exposed as CSS variables so they
+// can be referenced from Tailwind/theme tokens without layout-shifting FOUT.
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -28,6 +41,8 @@ const dmSans = DM_Sans({
   variable: "--font-body",
 });
 
+// App-wide SEO defaults. `metadataBase` resolves relative OG/Twitter image
+// URLs against APP_URL, and the title template prefixes page titles with "| Sonic".
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: {
@@ -60,6 +75,16 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * RootLayout renders the HTML shell and nests the global providers around all
+ * pages. Provider order matters: Clerk must wrap everything so auth state is
+ * available to tRPC procedures, and TRPCReactProvider wraps the tree so client
+ * components can call tRPC hooks. The Toaster sits outside NuqsAdapter so
+ * notifications render regardless of URL-param state.
+ *
+ * @param children - The active route's page content.
+ * @returns The root HTML document with providers mounted.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

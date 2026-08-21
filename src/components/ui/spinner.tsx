@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Spinner primitive.
+ * Vendored UI building block used across app features via the "@/components/ui/*" alias.
+ * Source: https://ui.shadcn.com/docs/components/spinner
+ */
 import { Loader2Icon } from "lucide-react"
 
 import { cn } from "@/lib/utils"

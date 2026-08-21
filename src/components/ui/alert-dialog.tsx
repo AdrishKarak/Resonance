@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui AlertDialog primitive.
+ * Vendored UI building block used across app features via the "@/components/ui/*" alias.
+ * Source: https://ui.shadcn.com/docs/components/alert-dialog
+ */
 "use client"
 
 import * as React from "react"

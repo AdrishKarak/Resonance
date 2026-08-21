@@ -1,3 +1,13 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Settings panel
+ * -----------------------------------------------------------------------------
+ * The desktop-only right sidebar of the TTS workspace (rendered by
+ * TextToSpeechView). It hosts two tabs: "Settings" (voice selection and the
+ * generation tuning sliders via SettingsPanelSettings) and "History" (recent
+ * generations via SettingsPanelHistory). Both tab bodies read/write the shared
+ * TanStack Form instance owned by TextToSpeechForm.
+ */
 import { History, Settings } from "lucide-react";
 
 import {
@@ -10,9 +20,15 @@ import {
 import { SettingsPanelHistory } from "./settings-panel-history";
 import { SettingsPanelSettings } from "./settings-panel-settings";
 
+// Shared trigger styling: flat, full-width tabs with an active bottom border
 const tabTriggerClassName =
     "flex-1 h-full gap-2 bg-transparent rounded-none border-x-0 border-t-0 border-b-px border-b-transparent shadow-none data-[state=active]:border-b-foreground group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none";
 
+/**
+ * Renders the desktop settings/history sidebar for the TTS workspace.
+ *
+ * @returns The tabbed settings panel element (hidden below the lg breakpoint).
+ */
 export function SettingsPanel() {
     return (
         <div className="hidden w-105 min-h-0 flex-col border-l lg:flex">

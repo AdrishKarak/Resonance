@@ -5,8 +5,19 @@ import { Button } from "@/components/ui/button";
 import type { QuickAction } from "@/features/dashboard/data/quick-actions";
 import { cn } from "@/lib/utils";
 
+/** Props mirror the `QuickAction` data shape one-to-one. */
 type QuickActionCardProps = QuickAction;
 
+/**
+ * A single dashboard shortcut card: gradient thumbnail, title/description,
+ * and a "Try now" link that deep-links into the TTS page with a pre-filled
+ * sample prompt.
+ *
+ * @param title - Card heading, also used as the React key by the parent grid.
+ * @param description - Short marketing copy explaining the use case.
+ * @param gradient - Tailwind `from-*`/`to-*` classes applied to the thumbnail.
+ * @param href - Destination URL (typically `/text-to-speech?text=...`).
+ */
 export function QuickActionCard({
     title,
     description,

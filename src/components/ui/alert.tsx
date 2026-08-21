@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Alert primitive.
+ * Vendored UI building block used across app features via the "@/components/ui/*" alias.
+ * Source: https://ui.shadcn.com/docs/components/alert
+ */
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 

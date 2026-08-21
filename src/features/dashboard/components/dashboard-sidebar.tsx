@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Dashboard sidebar
+ * -----------------------------------------------------------------------------
+ * The persistent app shell navigation for authenticated pages. It combines
+ * Clerk's `OrganizationSwitcher` (workspaces are the billing/usage unit in the
+ * app) with feature navigation links, a Clerk `UserButton`, and the billing
+ * `UsageContainer` in the footer. Built on shadcn/ui's collapsible Sidebar so
+ * it collapses to icons on desktop and becomes an overlay on mobile. Rendered
+ * by the dashboard layout; active states derive from the current pathname.
+ */
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 
@@ -37,6 +48,7 @@ import { UsageContainer } from "@/features/billing/components/usage-container";
 //import { VoiceCreateDialog } from "@/features/voices/components/voice-create-dialog";
 import { useState } from "react";
 
+/** A single sidebar entry: either a `Link` (when `url` is set) or a button. */
 interface MenuItem {
     title: string;
     url?: string;
@@ -44,12 +56,20 @@ interface MenuItem {
     onClick?: () => void;
 };
 
+/** Props for {@link NavSection}. */
 interface NavSectionProps {
     label?: string;
     items: MenuItem[];
     pathname: string;
 };
 
+/**
+ * Renders a labeled group of menu items with active-route highlighting.
+ *
+ * @param label - Optional uppercase group heading (e.g. "Others").
+ * @param items - The menu entries to render in order.
+ * @param pathname - Current route, used to mark the active item.
+ */
 function NavSection({ label, items, pathname }: NavSectionProps) {
     return (
         <SidebarGroup>
@@ -66,6 +86,8 @@ function NavSection({ label, items, pathname }: NavSectionProps) {
                                 asChild={!!item.url}
                                 isActive={
                                     item.url
+                                        // "/" must match exactly, otherwise every
+                                        // route would highlight the Dashboard item.
                                         ? item.url === "/"
                                             ? pathname === "/"
                                             : pathname.startsWith(item.url)
@@ -95,8 +117,16 @@ function NavSection({ label, items, pathname }: NavSectionProps) {
     );
 }
 
+/**
+ * The main application sidebar: logo, Clerk organization switcher, primary
+ * navigation, and the footer with billing usage + user menu.
+ *
+ * @returns The collapsible `Sidebar` shell used across authenticated pages.
+ */
 export function DashboardSidebar() {
     const pathname = usePathname();
+    // Gives access to Clerk's imperative APIs; used to open the org profile
+    // popover as the app's "Settings" surface (org name, members, etc.).
     const clerk = useClerk();
 
     const mainMenuItems: MenuItem[] = [
@@ -124,6 +154,8 @@ export function DashboardSidebar() {
 
     const othersMenuItems: MenuItem[] = [
         {
+            // No route: opens Clerk's organization profile popover instead of
+            // navigating, keeping org management inside the current page.
             title: "Settings",
             icon: Settings,
             onClick: () => clerk.openOrganizationProfile(),
@@ -156,6 +188,10 @@ export function DashboardSidebar() {
                     </Link>
                     <SidebarMenu>
                         <SidebarMenuItem>
+                            {/* Clerk org switcher: switching the active
+                                organization changes the billing/usage scope
+                                everywhere in the app. `hidePersonal` because
+                                the app is workspace-based. */}
                             <OrganizationSwitcher
                                 hidePersonal
                                 fallback={
@@ -193,9 +229,12 @@ export function DashboardSidebar() {
                 </SidebarContent>
                 <div className="border-b border-dashed border-border" />
                 <SidebarFooter className="gap-3 py-3">
+                    {/* Billing widget: upgrade CTA or current usage, scoped to
+                        the active Clerk organization. */}
                     <UsageContainer />
                     <SidebarMenu>
                         <SidebarMenuItem>
+                            {/* Clerk user menu (account settings, sign out). */}
                             <UserButton
                                 showName
                                 fallback={

@@ -1,8 +1,22 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Voice preview placeholder
+ * -----------------------------------------------------------------------------
+ * Empty-state panel shown in the desktop preview area of the main TTS view
+ * (TextToSpeechView) before any audio has been generated. It explains where the
+ * generated audio will appear and offers a "how to" contact link. Hidden on
+ * mobile (`hidden lg:flex`) since mobile has no persistent preview area.
+ */
 import Link from "next/link";
 import { AudioLines, BookOpen, Sparkles, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
+/**
+ * Renders the decorative empty state for the desktop voice preview area.
+ *
+ * @returns The placeholder illustration, copy, and help link.
+ */
 export function VoicePreviewPlaceholder() {
     return (
         <div className="hidden flex-1 lg:flex h-full flex-col items-center justify-center gap-6 border-t">

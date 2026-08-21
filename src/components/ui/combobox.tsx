@@ -1,3 +1,8 @@
+/**
+ * Combobox primitive built on Base UI (@base-ui/react) rather than cmdk.
+ * Provides a filterable listbox with trigger/clear affordances, portal-positioned popup,
+ * and optional multi-select chip support; consumed via the "@/components/ui/*" alias.
+ */
 "use client"
 
 import * as React from "react"

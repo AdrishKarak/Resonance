@@ -1,13 +1,36 @@
+/**
+ * -----------------------------------------------------------------------------
+ * VoicesList
+ * -----------------------------------------------------------------------------
+ * Presentational section that renders a titled, responsive grid of voice
+ * cards, or a friendly empty state when the section has no voices. It exists
+ * so voices-view.tsx can render both libraries ("Team Voices" and "Built-in
+ * Voices") with identical layout/empty-state treatment.
+ *
+ * Receives already-fetched voice data from the parent (which queries
+ * `trpc.voices.getAll`) and delegates each entry to VoiceCard; it holds no
+ * data-fetching or mutation logic of its own.
+ */
 import { AudioLines, Mic, Volume2 } from "lucide-react";
 
 import { VoiceCard } from "./voice-card";
 import type { VoiceItem } from "./voice-card";
 
+/** Props for {@link VoicesList}. */
 interface VoicesListProps {
+    /** Section heading, e.g. "Team Voices" or "Built-in Voices". */
     title: string;
+    /** Voices to render; an empty array shows the empty state. */
     voices: VoiceItem[];
 }
 
+/**
+ * Renders a titled grid of voice cards or an illustrated empty state.
+ *
+ * @param title - Heading shown above the grid (also used in empty-state copy).
+ * @param voices - Voice items fetched via `trpc.voices.getAll`.
+ * @returns The section markup: heading plus card grid, or the empty state.
+ */
 export function VoicesList({ title, voices }: VoicesListProps) {
     if (!voices.length) {
         return (

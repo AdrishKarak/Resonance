@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Settings panel: voice settings
+ * -----------------------------------------------------------------------------
+ * The "Settings" tab content of the TTS workspace. It binds the shared
+ * TanStack Form instance (via ttsFormOptions) to the voice selector and the
+ * generation tuning sliders defined in data/sliders.ts. Rendered both inside
+ * the desktop SettingsPanel tabs and inside the mobile SettingsDrawer, so it is
+ * intentionally layout-agnostic (no own padding container for the page).
+ */
 import { useStore } from "@tanstack/react-form";
 
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -10,7 +20,14 @@ import { sliders } from "@/features/text-to-speech/data/sliders";
 import { ttsFormOptions } from "@/features/text-to-speech/components/text-to-speech-form";
 import { VoiceSelector } from "@/features/text-to-speech/components/voice-selector";
 
+/**
+ * Renders the voice selector and one slider per generation parameter
+ * (temperature, topP, topK, repetitionPenalty), each bound to its form field.
+ *
+ * @returns The settings form controls for the TTS workspace.
+ */
 export function SettingsPanelSettings() {
+    // Attach to the shared form instance created by TextToSpeechForm's AppForm
     const form = useTypedAppFormContext(ttsFormOptions);
     const isSubmitting = useStore(form.store, (s) => s.isSubmitting);
 
@@ -24,6 +41,7 @@ export function SettingsPanelSettings() {
             {/* Voice Adjustments Section */}
             <div className="p-4 flex-1">
                 <FieldGroup className="gap-8">
+                    {/* Sliders are driven by config so each maps to a named form field */}
                     {sliders.map((slider) => (
                         <form.Field key={slider.id} name={slider.id}>
                             {(field) => (

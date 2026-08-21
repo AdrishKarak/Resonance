@@ -1,3 +1,9 @@
+/**
+ * WavyBackground animated canvas backdrop.
+ * Renders layered, noise-driven sine waves on an HTML canvas with configurable colors,
+ * speed, blur, and opacity, and layers children above the animation.
+ * Adapted from the Aceternity UI "Wavy Background" effect for use across app features.
+ */
 /* eslint-disable no-var */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";

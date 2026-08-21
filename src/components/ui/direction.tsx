@@ -1,3 +1,8 @@
+/**
+ * DirectionProvider wrapper around Radix UI's direction utilities.
+ * Sets the text/layout direction (LTR or RTL) for descendant Radix components and
+ * exposes useDirection() so features can read the active direction.
+ */
 "use client"
 
 import * as React from "react"

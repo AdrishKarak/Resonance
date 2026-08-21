@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Dashboard text input panel
+ * -----------------------------------------------------------------------------
+ * The hero text box on the dashboard where users paste or type the text they
+ * want to convert to speech. It shows a live cost estimate (using the shared
+ * `COST_PER_UNIT` constant) and a character counter, then hands off to the
+ * dedicated `/text-to-speech` page by pushing the trimmed text as a `text`
+ * query param — generation itself happens there, not here. Consumed by
+ * `DashboardView`.
+ */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Coins } from "lucide-react";
@@ -12,10 +23,19 @@ import {
     TEXT_MAX_LENGTH
 } from "@/features/text-to-speech/data/constants";
 
+/**
+ * Dashboard entry point for text-to-speech: captures text, estimates cost,
+ * and navigates to the TTS workspace with the text pre-filled.
+ *
+ * @returns The gradient-bordered textarea panel with cost/character badges
+ * and a "Generate speech" action.
+ */
 export function TextInputPanel() {
     const [text, setText] = useState("");
     const router = useRouter();
 
+    // Navigation (not generation) keeps this panel lightweight: the TTS page
+    // reads `?text=` and owns voice selection and actual audio generation.
     const handleGenerate = () => {
         const trimmed = text.trim();
         if (!trimmed) return;
@@ -42,6 +62,8 @@ export function TextInputPanel() {
                     {/* Bottom info */}
 
                     <div className="flex items-center justify-between">
+                        {/* Live cost estimate: characters x per-unit price,
+                            shown to 4 decimals since costs are sub-cent. */}
                         <Badge variant="outline" className="gap-1.5 border-dashed">
                             <Coins className="size-3 text-chart-5" />
                             <span className="text-xs">

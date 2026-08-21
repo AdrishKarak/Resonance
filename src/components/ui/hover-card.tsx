@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui HoverCard primitive.
+ * Vendored UI building block used across app features via the "@/components/ui/*" alias.
+ * Source: https://ui.shadcn.com/docs/components/hover-card
+ */
 "use client"
 
 import * as React from "react"

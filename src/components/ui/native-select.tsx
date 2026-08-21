@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui NativeSelect primitive.
+ * Vendored UI building block used across app features via the "@/components/ui/*" alias.
+ * Source: https://ui.shadcn.com/docs/components/native-select
+ */
 import * as React from "react"
 import { ChevronDownIcon } from "lucide-react"
 

@@ -1,3 +1,12 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Sentry client instrumentation hook
+ * -----------------------------------------------------------------------------
+ * Next.js lifecycle file for browser-side observability: initializes Sentry
+ * in the user's browser to capture client errors, performance traces, and
+ * session replays. Complements `instrumentation.ts`, which covers the
+ * server/edge runtimes; together they give full-stack error visibility.
+ */
 // This file configures the initialization of Sentry on the client.
 // The added config here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
@@ -21,6 +30,7 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
 
   // Define how likely Replay events are sampled when an error occurs.
+  // Always capture a replay when an error happens for full debugging context.
   replaysOnErrorSampleRate: 1.0,
 
   // Enable sending user PII (Personally Identifiable Information)
@@ -28,4 +38,5 @@ Sentry.init({
   sendDefaultPii: true,
 });
 
+// Hook App Router navigation timings into Sentry performance monitoring.
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

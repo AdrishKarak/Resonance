@@ -1,3 +1,13 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Page header
+ * -----------------------------------------------------------------------------
+ * A compact top bar for pages that don't render the full dashboard header —
+ * primarily used on mobile/tablet layouts (hidden on `lg` where the sidebar
+ * and `DashboardHeader` take over). Shows a sidebar toggle, the page title,
+ * and feedback/support mailto buttons. Consumed by `DashboardView` and any
+ * route needing a lightweight title bar.
+ */
 import { Headphones, ThumbsUp } from "lucide-react";
 import Link from "next/link";
 
@@ -5,6 +15,13 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
+/**
+ * Renders a bordered top bar with the page title and support actions.
+ *
+ * @param title - The page title displayed next to the sidebar trigger.
+ * @param className - Optional classes merged onto the root container
+ * (commonly used to hide the header on desktop via `lg:hidden`).
+ */
 export function PageHeader({
     title,
     className,

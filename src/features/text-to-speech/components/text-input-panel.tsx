@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Text input panel
+ * -----------------------------------------------------------------------------
+ * The left-hand workspace of the TTS view: the main text area plus its action
+ * bar. It connects to the shared TanStack Form instance (via ttsFormOptions and
+ * useTypedAppFormContext) to read the current text, validity, and submitting
+ * state. On desktop it shows an estimated cost badge, character counter, and
+ * GenerateButton; when empty it shows PromptSuggestions instead. On mobile it
+ * swaps in SettingsDrawer (wrapping VoiceSelectorButton) and HistoryDrawer.
+ */
 import { Coins } from "lucide-react";
 import { useStore } from "@tanstack/react-form";
 
@@ -19,9 +30,18 @@ import { ttsFormOptions } from "./text-to-speech-form";
 import { GenerateButton } from "./generate-button";
 import { PromptSuggestions } from "./prompt-suggestions";
 
+/**
+ * Renders the text input area with cost estimate, character count, suggestions,
+ * and generate action.
+ *
+ * @returns The text input panel element.
+ */
 export function TextInputPanel() {
+    // Reattach to the shared form instance created by ttsFormOptions so this
+    // panel stays in sync with voice/settings panels without prop drilling
     const form = useTypedAppFormContext(ttsFormOptions);
 
+    // Subscribe only to the slices of form state this panel renders
     const text = useStore(form.store, (s) => s.values.text);
     const isSubmitting = useStore(form.store, (s) => s.isSubmitting);
     const isValid = useStore(form.store, (s) => s.isValid);
@@ -50,6 +70,7 @@ export function TextInputPanel() {
                 {/* Mobile layout */}
                 <div className="flex flex-col gap-3 lg:hidden">
                     <div className="flex items-center gap-2">
+                        {/* Voice button doubles as the settings drawer trigger on mobile */}
                         <SettingsDrawer>
                             <VoiceSelectorButton />
                         </SettingsDrawer>
@@ -63,8 +84,10 @@ export function TextInputPanel() {
                     />
                 </div>
                 {/* Desktop layout */}
+                {/* Desktop layout: cost + counter once text exists, suggestions when empty */}
                 {text.length > 0 ? (
                     <div className="hidden items-center justify-between lg:flex">
+                        {/* Estimated cost derived from character count and per-unit price */}
                         <Badge variant="outline" className="gap-1.5 border-dashed">
                             <Coins className="size-3 text-chart-5" />
                             <span className="text-xs">
@@ -91,6 +114,7 @@ export function TextInputPanel() {
                     </div>
                 ) : (
                     <div className="hidden lg:block">
+                        {/* Empty state: clicking a suggestion fills the form's text field */}
                         <PromptSuggestions
                             onSelect={(prompt) => form.setFieldValue("text", prompt)}
                         />

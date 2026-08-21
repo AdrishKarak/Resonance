@@ -1,6 +1,22 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Text-to-Speech Loading Skeleton
+ * -----------------------------------------------------------------------------
+ * Next.js streaming fallback for the `/text-to-speech` route, shown while the
+ * server component (and its tRPC prefetches) resolve. It exists to prevent a
+ * blank flash during navigation: it mirrors the real studio layout — editor
+ * area, mobile/desktop action bars, voice preview pane, and the right-hand
+ * settings sidebar with slider placeholders — so the skeleton swaps
+ * seamlessly for actual content when ready.
+ */
 import { Skeleton } from "@/components/ui/skeleton";
 import { VoicePreviewPlaceholder } from "@/features/text-to-speech/components/voice-preview-placeholder";
 
+/**
+ * Loading renders the layout-matched skeleton for the TTS studio.
+ *
+ * @returns A static skeleton approximating the final studio UI.
+ */
 export default function Loading() {
     return (
         <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -43,6 +59,9 @@ export default function Loading() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                    {/* Skeletons for the settings sidebar: voice selector plus
+                    the creativity/variety/range/flow sliders, mirroring the
+                    real panel's structure. */}
                     <div className="space-y-6">
                         <div className="space-y-3 border-b border-dashed pb-4">
                             <Skeleton className="h-4 w-24" />

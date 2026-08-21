@@ -1,10 +1,30 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Quick actions dataset
+ * -----------------------------------------------------------------------------
+ * Static, curated list of dashboard "Quick actions" — each entry is a themed
+ * use case (story narration, ads, game characters, etc.) with a pre-written
+ * sample prompt. The `href` values deep-link into `/text-to-speech?text=...`
+ * so clicking a card opens the TTS workspace already filled in. Consumed by
+ * `QuickActionsPanel` and typed against by `QuickActionCard`.
+ */
+
+/** Shape of a single quick action card shown on the dashboard. */
 export interface QuickAction {
     title: string;
     description: string;
+    /** Tailwind gradient classes (`from-* to-*`) for the card thumbnail. */
     gradient: string;
+    /** Deep link into the TTS page with the sample prompt pre-filled. */
     href: string;
 };
 
+/**
+ * The ordered quick actions rendered on the dashboard.
+ *
+ * Each `href` embeds a URL-encoded sample script so users can hear results
+ * with a single click instead of writing their own text first.
+ */
 export const quickActions: QuickAction[] = [
     {
         title: "Narrate a Story",

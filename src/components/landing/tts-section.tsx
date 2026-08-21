@@ -3,7 +3,31 @@
 import { useEffect } from "react";
 import Image from "next/image";
 
+/**
+ * -----------------------------------------------------------------------------
+ * TTS Product Section
+ * -----------------------------------------------------------------------------
+ * Showcases the core text-to-speech product via a browser-chrome-framed
+ * screenshot of the Sonic Studio ("app.sonic.ai/studio"). It exists to give
+ * visitors a concrete look at the actual editor UI right after the hero and
+ * brand marquee. It is rendered in the landing page composition
+ * (src/app/landing/page.tsx) between the Marquee and BentoGrid sections, and
+ * its reveal animations are driven by an IntersectionObserver that adds the
+ * `visible` class to `.reveal` children as they scroll into view.
+ */
+
+/**
+ * Product showcase section with a framed TTS Studio screenshot.
+ *
+ * @returns A full-width section containing a "Product" eyebrow label, a
+ *   headline, and a macOS-style browser frame wrapping the studio screenshot.
+ */
 export default function TtsSection() {
+  // Scroll-reveal setup: observe every .reveal element inside this section
+  // and toggle the `visible` class (defined in global CSS) when at least 12%
+  // of the element enters the viewport. The observer is disconnected on
+  // unmount to avoid leaks. Scoping the query to #tts-section keeps the
+  // observer from touching other sections' elements.
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {

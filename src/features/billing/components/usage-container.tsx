@@ -1,3 +1,14 @@
+/**
+ * -----------------------------------------------------------------------------
+ * Billing usage container
+ * -----------------------------------------------------------------------------
+ * A compact widget rendered in the dashboard sidebar footer that surfaces the
+ * signed-in organization's billing state. It queries the `billing.getStatus`
+ * tRPC procedure (which reads Polar subscription data) and conditionally shows
+ * either an upgrade prompt (pay-as-you-go checkout via `useCheckout`) or the
+ * current period's estimated spend with a link into the Polar customer portal.
+ * It is consumed exclusively by `DashboardSidebar`.
+ */
 import { useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
@@ -6,6 +17,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { useCheckout } from "@/features/billing/hooks/use-checkout";
 import { useTRPC } from "@/trpc/client";
 
+/**
+ * Formats an integer amount of cents as a USD currency string (e.g. 123 -> "$1.23").
+ * Costs are stored in cents to avoid floating point issues, so we divide by 100 here.
+ */
 function formatCurrency(cents: number): string {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -13,6 +28,11 @@ function formatCurrency(cents: number): string {
     }).format(cents / 100);
 }
 
+/**
+ * Shown when the organization has no active Polar subscription. Kicks off a
+ * hosted Polar checkout via `useCheckout`, which redirects the whole page to
+ * the checkout URL, hence the "Redirecting..." pending state.
+ */
 function UpgradeCard() {
     const { checkout, isPending: isCheckoutPending } = useCheckout();
 
@@ -46,6 +66,11 @@ function UpgradeCard() {
     );
 };
 
+/**
+ * Shown when the organization has an active subscription. Displays the
+ * estimated cost (in cents) for the current billing period and opens the
+ * Polar customer portal in a new tab so users can manage their subscription.
+ */
 function UsageCard({
     estimatedCostCents
 }: {
@@ -56,6 +81,8 @@ function UsageCard({
         trpc.billing.createPortalSession.mutationOptions({}),
     );
 
+    // Ask the server to create a Polar customer portal session, then open the
+    // returned portal URL in a new tab (server-side auth keeps the URL secret).
     const openPortal = useCallback(() => {
         portalMutation.mutate(undefined, {
             onSuccess: (data) => {
@@ -97,6 +124,13 @@ function UsageCard({
     );
 };
 
+/**
+ * Public entry point for the sidebar billing widget. Fetches billing status
+ * via tRPC and renders either {@link UsageCard} (active subscription) or
+ * {@link UpgradeCard} (no subscription).
+ *
+ * @returns A bordered container with the appropriate billing card inside.
+ */
 export function UsageContainer() {
     const trpc = useTRPC();
     const { data } = useQuery(trpc.billing.getStatus.queryOptions());

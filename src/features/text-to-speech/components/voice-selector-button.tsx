@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Voice selector button
+ * -----------------------------------------------------------------------------
+ * Compact trigger showing the currently selected voice (avatar + name). It
+ * reads the form's `voiceId` from the shared TTS form and the voice list from
+ * TTSVoicesContext, and renders as a DrawerTrigger so it can open either the
+ * mobile SettingsDrawer (via TextInputPanel) or another voice-listing drawer.
+ */
 import { ChevronDown } from "lucide-react";
 import { useStore } from "@tanstack/react-form";
 
@@ -11,12 +20,19 @@ import { useTypedAppFormContext } from "@/hooks/use-app-form";
 import { useTTSVoices } from "../contexts/tts-voices-context";
 import { ttsFormOptions } from "./text-to-speech-form";
 
+/**
+ * Renders the current-voice button that acts as a drawer trigger.
+ *
+ * @returns The voice selector trigger button element.
+ */
 export function VoiceSelectorButton() {
     const { allVoices } = useTTSVoices();
 
+    // Reattach to the shared TTS form to read the live voiceId selection
     const form = useTypedAppFormContext(ttsFormOptions);
     const voiceId = useStore(form.store, (s) => s.values.voiceId)
 
+    // Fall back to the first voice when the stored id no longer matches
     const currentVoice =
         allVoices.find((v) => v.id === voiceId) ?? allVoices[0];
 

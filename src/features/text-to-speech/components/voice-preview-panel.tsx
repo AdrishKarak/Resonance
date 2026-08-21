@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Voice preview panel
+ * -----------------------------------------------------------------------------
+ * Desktop audio playback view for a completed generation, rendered by
+ * TextToSpeechDetailView (its mobile counterpart is VoicePreviewMobile). It
+ * renders an interactive waveform via the useWaveSurfer hook, play/pause and
+ * ±10s seek controls, a time readout, voice metadata, and a client-side
+ * download of the generated WAV from its R2-backed URL.
+ */
 import { useState } from "react";
 import { Pause, Play, Download, Redo, Undo } from "lucide-react";
 
@@ -12,17 +22,37 @@ import { useWaveSurfer } from "../hooks/use-wavesurfer";
 
 
 
+/**
+ * Minimal voice shape needed for the preview footer metadata.
+ */
 type VoicePreviewPanelVoice = {
     id?: string;
     name: string;
 };
 
+/**
+ * Formats seconds as a zero-padded "MM:SS" string.
+ *
+ * @param seconds - Elapsed or total time in seconds.
+ * @returns The formatted time label.
+ */
 function formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
+/**
+ * Renders the waveform player for a generated audio file.
+ *
+ * @param props.audioUrl - URL of the WAV file (served from Cloudflare R2) to
+ * load into the WaveSurfer instance.
+ * @param props.voice - The voice used for the generation, shown in the footer
+ * metadata; null when unknown.
+ * @param props.text - The source text, used both as displayed metadata and to
+ * derive the download filename.
+ * @returns The voice preview panel element.
+ */
 export function VoicePreviewPanel({
     audioUrl,
     voice,
@@ -36,6 +66,8 @@ export function VoicePreviewPanel({
     const selectedVoiceName = voice?.name ?? null;
     const selectedVoiceSeed = voice?.id ?? null;
 
+    // Waveform lifecycle (create/load/destroy) is fully managed by the hook;
+    // autoplay starts playback as soon as the audio is decoded
     const {
         containerRef,
         isPlaying,
@@ -53,6 +85,8 @@ export function VoicePreviewPanel({
     const handleDownload = () => {
         setIsDownloading(true);
 
+        // Derive a filesystem-safe filename from the first 50 chars of the text,
+        // falling back to "speech" when nothing usable remains
         const safeName =
             text
                 .slice(0, 50)
@@ -68,6 +102,7 @@ export function VoicePreviewPanel({
         link.click();
         document.body.removeChild(link);
 
+        // Keep the button disabled briefly so rapid clicks don't stack downloads
         setTimeout(() => setIsDownloading(false), 1000);
     };
 
@@ -91,6 +126,8 @@ export function VoicePreviewPanel({
                         </Badge>
                     </div>
                 )}
+                {/* Waveform container; kept invisible (not unmounted) until
+                    WaveSurfer reports ready so the hook's ref stays attached */}
                 <div
                     ref={containerRef}
                     className={cn(

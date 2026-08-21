@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Prompt suggestions
+ * -----------------------------------------------------------------------------
+ * A set of curated starter texts ("Get started with") shown in TextInputPanel
+ * when the text area is empty on desktop. Each suggestion is a ready-made
+ * script (story, ad, podcast intro, etc.) that, when clicked, fills the shared
+ * TTS form's `text` field via the `onSelect` callback — helping users try the
+ * generator without writing their own copy first.
+ */
 import {
     BookOpen,
     Smile,
@@ -15,6 +25,10 @@ import { Badge } from "@/components/ui/badge";
 
 import type { LucideIcon } from "lucide-react";
 
+/**
+ * Static catalog of prompt suggestions driving the badge list. Kept as data so
+ * new suggestions only require an entry here, not UI changes.
+ */
 const PROMPT_SUGGESTIONS: {
     label: string;
     prompt: string;
@@ -70,6 +84,13 @@ const PROMPT_SUGGESTIONS: {
         },
     ];
 
+/**
+ * Renders the clickable suggestion badges.
+ *
+ * @param props.onSelect - Called with the suggestion's full prompt text when a
+ * badge is clicked; TextInputPanel uses it to populate the form's text field.
+ * @returns The suggestions block element.
+ */
 export function PromptSuggestions({
     onSelect,
 }: {

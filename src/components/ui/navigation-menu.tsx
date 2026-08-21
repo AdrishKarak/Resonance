@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui NavigationMenu primitive.
+ * Vendored UI building block used across app features via the "@/components/ui/*" alias.
+ * Source: https://ui.shadcn.com/docs/components/navigation-menu
+ */
 import * as React from "react"
 import { cva } from "class-variance-authority"
 import { ChevronDownIcon } from "lucide-react"

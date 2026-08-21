@@ -1,3 +1,17 @@
+/**
+ * -----------------------------------------------------------------------------
+ * tRPC client-side provider (browser)
+ * -----------------------------------------------------------------------------
+ * Sets up the React bindings for tRPC on the client: the typed context hooks
+ * (`TRPCProvider`, `useTRPC`) and the `TRPCReactProvider` component that wraps
+ * the app in `src/app/layout.tsx`. It pairs with `server.tsx`, which handles
+ * the server-rendered side (prefetching/hydration); both share
+ * `query-client.ts` and the `AppRouter` type so client calls stay end-to-end
+ * type-safe.
+ *
+ * Requests are batched over HTTP with superjson as the wire transformer,
+ * matching the transformer configured in `init.ts`.
+ */
 'use client';
 
 // ^-- to make sure we can mount the Provider from a server component
@@ -10,6 +24,7 @@ import superjson from "superjson";
 import { makeQueryClient } from './query-client';
 import type { AppRouter } from './routers/_app';
 
+// Typed hooks consumed throughout feature components (e.g. `useTRPC(...)`).
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 
 let browserQueryClient: QueryClient;
@@ -35,6 +50,12 @@ function getUrl() {
     return `${base}/api/trpc`;
 }
 
+/**
+ * Root provider that wires React Query and the tRPC client into the React tree.
+ *
+ * @param props.children - The app subtree allowed to call `useTRPC()`.
+ * @returns The nested QueryClient + TRPC providers.
+ */
 export function TRPCReactProvider(
     props: Readonly<{
         children: React.ReactNode;
@@ -46,6 +67,7 @@ export function TRPCReactProvider(
     //       render if it suspends and there is no boundary
     const queryClient = getQueryClient();
 
+    // useState initializer keeps the tRPC client stable across re-renders.
     const [trpcClient] = useState(() =>
         createTRPCClient<AppRouter>({
             links: [

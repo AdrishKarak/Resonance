@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Dialog primitive.
+ * Vendored UI building block used across app features via the "@/components/ui/*" alias.
+ * Source: https://ui.shadcn.com/docs/components/dialog
+ */
 "use client"
 
 import * as React from "react"

@@ -5,6 +5,23 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Type, Sparkles, Zap, ArrowRight } from "lucide-react";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Pricing Section (Usage-Based)
+ * -----------------------------------------------------------------------------
+ * Presents Sonic's usage-based pricing model: a hero "$0 / no subscription"
+ * card alongside per-feature rate rows (TTS generation, voice cloning, free
+ * exploration). It exists to communicate that visitors can explore for free
+ * and only pay when they synthesize or clone, with billing handled by Polar.
+ * It is rendered in the landing page composition
+ * (src/app/landing/page.tsx) after the BentoGrid and before the Footer. The
+ * section is a client component because it reads Clerk auth state to route
+ * the CTA and runs an IntersectionObserver for scroll-reveal animations.
+ */
+
+// The three pay-as-you-go line items shown as rate cards on the right side of
+// the grid. Each entry is paired with an animated SVG illustration via the
+// `rateIcons` index mapping below.
 const usageRates = [
   {
     icon: Type,
@@ -30,6 +47,10 @@ const usageRates = [
 ];
 
 // ─── SVG Illustrations ───────────────────────────────────────────────────────
+// Self-contained SMIL-animated SVGs (no JS animation loop needed) used as the
+// animated "icons" for each rate row. Each visualizes its pricing concept:
+// sound waves for TTS, a DNA helix for cloning, an orbiting bolt for free
+// exploration.
 
 /** Sound waves radiating from a central dot — "TTS" */
 function TTSAnimation() {
@@ -197,13 +218,26 @@ function HeroBgSVG() {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// Maps each usageRates entry (by index) to its animated SVG illustration,
+// keeping the data array free of JSX.
 const rateIcons = [TTSAnimation, CloningAnimation, ExplorationAnimation];
 
+/**
+ * Usage-based pricing section with hero card, rate rows, and auth-aware CTA.
+ *
+ * @returns The pricing section: a "$0 subscription" hero card, three animated
+ *   rate rows mapped from `usageRates`, and a CTA button that routes
+ *   signed-in users to the app and guests to sign-up.
+ */
 export default function Pricing() {
   const router = useRouter();
   const { isSignedIn } = useUser();
   const sectionRef = useRef<HTMLElement>(null);
 
+  // Scroll-reveal: observe all .reveal descendants and add the `visible`
+  // class when they enter the viewport (threshold 12%). Scoped to this
+  // section's ref so other sections' reveal elements are untouched; the
+  // observer is disconnected on unmount to prevent leaks.
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => entries.forEach((e) => {
@@ -216,6 +250,9 @@ export default function Pricing() {
   }, []);
 
   return (
+    // Scoped <style> blocks keep this section's reveal/hover/CTA styles
+    // self-contained without a separate CSS module; the second block handles
+    // the responsive single-column collapse below 680px.
     <>
       <style>{`
         .reveal {
@@ -387,7 +424,8 @@ export default function Pricing() {
             </div>
           </div>
 
-          {/* Rate rows stacked */}
+          {/* Rate rows stacked — each row's illustration is picked by index
+              from `rateIcons`; transitionDelay staggers the reveal cascade */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {usageRates.map((item, i) => {
               const Anim = rateIcons[i];
@@ -417,7 +455,8 @@ export default function Pricing() {
               );
             })}
 
-            {/* CTA inline */}
+            {/* CTA inline — auth-aware routing: signed-in users land in the
+                app, guests are sent to sign-up */}
             <div className="reveal" style={{ transitionDelay: "0.52s", paddingTop: 4 }}>
               <button
                 className="cta-btn"

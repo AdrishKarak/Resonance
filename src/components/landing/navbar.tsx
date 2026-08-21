@@ -5,10 +5,33 @@ import { useUser, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 
+/**
+ * -----------------------------------------------------------------------------
+ * Landing Navbar
+ * -----------------------------------------------------------------------------
+ * Fixed, floating pill-shaped navigation bar for the landing page. It handles
+ * two concerns: (1) a scroll-aware glass background that becomes more opaque
+ * once the user scrolls past the hero, and (2) authentication UI driven by
+ * Clerk — signed-out visitors see Sign in / Sign up modal triggers, while
+ * signed-in users see their name and Clerk's <UserButton> avatar menu. It is
+ * rendered at the top of the landing page composition
+ * (src/app/landing/page.tsx) and stays pinned above all sections via z-50.
+ */
+
+/**
+ * Sticky glass navbar with Clerk-powered auth controls.
+ *
+ * @returns A fixed-position navigation bar containing the Sonic logo link and
+ *   either sign-in/sign-up buttons or the signed-in user's identity.
+ */
 export default function Navbar() {
   const { isSignedIn, user } = useUser();
   const navRef = useRef<HTMLElement>(null);
 
+  // Swap the nav's background between the translucent "at top" and more
+  // opaque "scrolled" glass tokens so it remains legible over hero imagery
+  // without permanently blocking it. The listener is passive since we only
+  // read scroll position and never call preventDefault().
   useEffect(() => {
     const handleScroll = () => {
       const nav = navRef.current;
@@ -24,6 +47,9 @@ export default function Navbar() {
   }, []);
 
   return (
+    // Outer wrapper is pointer-events-none so the fixed full-width strip
+    // doesn't block clicks on page content; only the inner <nav> re-enables
+    // pointer events.
     <div className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 sm:px-10 pt-4 pointer-events-none">
       <nav
         ref={navRef}
@@ -44,7 +70,8 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Auth Controls */}
+        {/* Auth Controls — Clerk-driven: modal-based flows for guests,
+            avatar + name for authenticated users */}
         {isSignedIn ? (
           <div className="flex items-center gap-2.5">
             <span
